@@ -3,7 +3,7 @@ import pyttsx3
 import speech_recognition as sr
 
 # 🔑 Set up OpenAI API Key
-openai.api_key = process.env.API_KEY;
+openai.api_key = ""
 
 # 🎤 Function to recognize speech
 def recognize_speech():
