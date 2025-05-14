@@ -7,16 +7,27 @@ import webbrowser
 import datetime
 import os
 import sys
+import cv2
+import numpy as np
+import openai
+from transformers import pipeline
 
 # Initialize text-to-speech engine
 engine = pyttsx3.init()
 engine.setProperty('rate', 170)  # Speed of speech
 engine.setProperty('volume', 1.0)  # Volume level
 
+# Initialize OpenAI API (Replace with your API key)
+openai.api_key = "YOUR_OPENAI_API_KEY"
+
+# NLP Sentiment Analysis
+sentiment_analyzer = pipeline("sentiment-analysis")
+
 def speak(text):
     """Converts text to speech"""
     engine.say(text)
     engine.runAndWait()
+
 
 def recognize_speech():
     """Listens to the user and converts speech to text"""
@@ -25,8 +36,7 @@ def recognize_speech():
         with sr.Microphone() as source:
             print("Listening...")
             recognizer.adjust_for_ambient_noise(source, duration=0.5)
-            audio = recognizer.listen(source, timeout=5, phrase_time_limit=8)  # Adding timeout
-            
+            audio = recognizer.listen(source, timeout=5, phrase_time_limit=8)
         command = recognizer.recognize_google(audio).lower()
         print(f"You said: {command}")
         return command
@@ -39,6 +49,7 @@ def recognize_speech():
     except sr.WaitTimeoutError:
         speak("No input detected. Please say something.")
         return ""
+
 
 def execute_command(command):
     """Executes tasks based on voice commands"""
@@ -62,7 +73,7 @@ def execute_command(command):
         try:
             result = wikipedia.summary(query, sentences=2)
             speak(result)
-        except wikipedia.exceptions.DisambiguationError as e:
+        except wikipedia.exceptions.DisambiguationError:
             speak("The search term is too broad. Please be more specific.")
         except wikipedia.exceptions.PageError:
             speak("Sorry, I couldn't find anything on Wikipedia for that.")
@@ -83,21 +94,47 @@ def execute_command(command):
                 os.system(f'open {app}')
             else:
                 speak("Sorry, I can't open applications on this system.")
-        except Exception as e:
+        except Exception:
             speak("Error opening application.")
-
+    
     elif 'exit' in command or 'stop' in command:
         speak("Goodbye!")
         sys.exit()
     
+    elif 'analyze' in command:
+        text = command.replace('analyze', '').strip()
+        result = sentiment_analyzer(text)
+        speak(f"The sentiment is {result[0]['label']} with a confidence of {result[0]['score']:.2f}")
+    
+    elif 'chat' in command:
+        user_query = command.replace('chat', '').strip()
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": user_query}]
+        )
+        speak(response["choices"][0]["message"]["content"])
+    
+    elif 'camera' in command:
+        speak("Opening camera...")
+        cam = cv2.VideoCapture(0)
+        while True:
+            ret, frame = cam.read()
+            cv2.imshow("Camera", frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        cam.release()
+        cv2.destroyAllWindows()
+    
     else:
         speak("Sorry, I didn't understand that.")
 
+
 # Main loop
 if __name__ == "__main__":
-    speak("Hello! I am your AI assistant. How can I help you?")
+    speak("Hello! I am Marisa, your AI assistant. How can I assist you today?")
     while True:
         user_command = recognize_speech()
         if user_command:
             execute_command(user_command)
+
 
